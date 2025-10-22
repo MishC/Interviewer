@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { query } from "./db.js";
+import dns from "dns/promises";
 
 
 const router = Router();
@@ -15,10 +16,37 @@ await query("SELECT 1");
 res.json({ ok: true });
 }));
 
+/** Domain check  (Optional) */
+ router.post("/test_domain", wrap(async (req, res) => {
+  const { email = "" } = req.body ?? {};
+
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({ error: "Missing or invalid 'email'" });
+  }
+
+  const domain = email.split("@")[1];
+  if (!domain) {
+    return res.status(400).json({ error: "Email must contain a domain" });
+  }
+
+  try {
+    const records = await dns.resolveMx(domain);
+    if (!records || records.length === 0) {
+      return res.status(400).json({ valid: false, error: "Domain has no MX records" });
+    }
+
+    // ok, MX records exist
+    return res.status(200).json({ valid: true, domain, mx: records });
+
+  } catch (err) {
+    console.error("MX check failed:", err);
+    return res.status(400).json({ valid: false, error: "Invalid or unreachable email domain" });
+  }
+}));
 
 /** USERS */
 router.post("/users", wrap(async (req, res) => {
-const { email, display_name = "" } = req.body ?? {};
+const { display_name = "", email } = req.body ?? {};
 if (!email) return res.status(400).json({ error: "Missing 'email'" });
 
 
