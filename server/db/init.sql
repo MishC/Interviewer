@@ -1,5 +1,3 @@
--- init.sql — one user, multiple positions, questions/answers, documents (PDFs)
-
 -- USERS
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
@@ -8,58 +6,55 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- POSITIONS (one user can have many)
+-- POSITIONS
+-- company_input: user may type "Google, Dublin" in one field
+-- company_name, city are auto-parsed (generated columns) but can be edited later if you prefer.
 CREATE TABLE IF NOT EXISTS positions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  company_name TEXT NOT NULL,
+
+  company_input TEXT NOT NULL,                               -- e.g. "Google, Dublin"
+  company_name  TEXT GENERATED ALWAYS AS (                   -- left of comma
+      NULLIF(btrim(split_part(company_input, ',', 1)), '')
+  ) STORED,
+  city          TEXT GENERATED ALWAYS AS (                   -- right of comma
+      NULLIF(btrim(split_part(company_input, ',', 2)), '')
+  ) STORED,
+
   position_title TEXT NOT NULL,
-  belief TEXT NOT NULL DEFAULT '',            -- your personal motivation / belief
-  status TEXT NOT NULL DEFAULT 'draft',       -- draft | in_progress | submitted | hired | rejected | archived
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  belief         TEXT NOT NULL DEFAULT '',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- QUESTIONS (global question set)
-CREATE TABLE IF NOT EXISTS questions (
+CREATE INDEX IF NOT EXISTS idx_positions_user ON positions(user_id);
+
+-- APPLICATIONS (user x position) with QA JSON
+CREATE TABLE IF NOT EXISTS applications (
   id SERIAL PRIMARY KEY,
-  text TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'text',          -- text | radio | voice | select
-  options JSONB NOT NULL DEFAULT '[]'::jsonb,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- ANSWERS (each belongs to one position + question)
-CREATE TABLE IF NOT EXISTS answers (
-  id BIGSERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   position_id INTEGER NOT NULL REFERENCES positions(id) ON DELETE CASCADE,
-  question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
-  text TEXT NOT NULL DEFAULT '',
-  audio_url TEXT NOT NULL DEFAULT '',
-  transcript TEXT NOT NULL DEFAULT '',
+
+  -- Array of 10 items; each item: {question_id, question_text, type, answer:{text,audio_url,transcript}}
+  qa JSONB NOT NULL DEFAULT '[]'::jsonb,
+  summary_file_url TEXT NOT NULL DEFAULT '',   -- link/path to PDF export
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT uq_answer_per_position_question UNIQUE (position_id, question_id)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT uq_app_per_user_position UNIQUE (user_id, position_id),
+  CONSTRAINT chk_qa_array CHECK (jsonb_typeof(qa) = 'array')
 );
 
--- DOCUMENTS (PDFs, CVs, etc.)
-CREATE TABLE IF NOT EXISTS documents (
-  id BIGSERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  position_id INTEGER REFERENCES positions(id) ON DELETE CASCADE,
-  doc_type TEXT NOT NULL DEFAULT 'export_pdf',    -- export_pdf | cv | cover_letter | attachment | transcript
-  file_url TEXT NOT NULL,
-  storage_provider TEXT NOT NULL DEFAULT 'local', -- local | s3 | gcs | azure | other
-  meta JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+CREATE INDEX IF NOT EXISTS idx_applications_user      ON applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_applications_position  ON applications(position_id);
+CREATE INDEX IF NOT EXISTS idx_applications_qa_gin    ON applications USING GIN (qa);
 
--- INDEXES
-CREATE INDEX IF NOT EXISTS idx_positions_user       ON positions(user_id);
-CREATE INDEX IF NOT EXISTS idx_questions_active     ON questions(is_active);
-CREATE INDEX IF NOT EXISTS idx_answers_user         ON answers(user_id);
-CREATE INDEX IF NOT EXISTS idx_answers_position     ON answers(position_id);
-CREATE INDEX IF NOT EXISTS idx_answers_question     ON answers(question_id);
-CREATE INDEX IF NOT EXISTS idx_documents_user       ON documents(user_id);
-CREATE INDEX IF NOT EXISTS idx_documents_position   ON documents(position_id);
-CREATE INDEX IF NOT EXISTS idx_documents_type       ON documents(doc_type);
+-- Optional: trigger to keep updated_at fresh
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_app_updated ON applications;
+CREATE TRIGGER trg_app_updated
+BEFORE UPDATE ON applications
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
