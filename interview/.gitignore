@@ -2,7 +2,6 @@
 .env.*.local
 .env.local
 .env.development.local
-*.env*
 # Keys
 *.pem
 /keys/*.json
