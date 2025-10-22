@@ -16,11 +16,11 @@ export async function saveUser(input: { display_name: string; email: string }) {
 }
 
 export async function createPosition(input: {
-  user_id: string;            // email
-  company_name: string;
+  user_id: number;            
+  company_input: string;
   position_title: string;
   belief?: string;
-  status?: "draft" | "submitted" | "archived";
+  
 }) {
   const res = await fetch(`${API_BASE}/positions`, {
     method: "POST",

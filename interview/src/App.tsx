@@ -34,54 +34,54 @@ export default function App() {
     setProfile((prev) => ({ ...prev, [name]: value }));
   }, []);
 
-  
-const startQuiz = useCallback(async () => {
-  setError(null);
 
-  // Validation of input fields of profile values before proceeding to quiz
-  const must = [profile.name, profile.age, profile.role, profile.company, profile.bestThing];
-  const allFilled = must.every((v) => String(v).trim() !== "");
-  const ageOk = profile.age === "" || !Number.isNaN(Number(profile.age));
+  const startQuiz = useCallback(async () => {
+    setError(null);
 
-  // Email is not mandatory but if provided, must be valid
-  const emailProvided = (profile.email ?? "").trim() !== "";
-  const emailOk = !emailProvided || isValidEmail(profile.email);
+    // Validation of input fields of profile values before proceeding to quiz
+    const must = [profile.name, profile.age, profile.role, profile.company, profile.bestThing];
+    const allFilled = must.every((v) => String(v).trim() !== "");
+    const ageOk = profile.age === "" || !Number.isNaN(Number(profile.age));
 
-  if (!allFilled || !ageOk || !emailOk) {
-    setError("Please fill in all fields correctly.");
-    return;
-  }
+    // Email is not mandatory but if provided, must be valid
+    const emailProvided = (profile.email ?? "").trim() !== "";
+    const emailOk = !emailProvided || isValidEmail(profile.email);
 
-  try {
-    setIsLoading(true);
+    if (!allFilled || !ageOk || !emailOk) {
+      setError("Please fill in all fields correctly.");
+      return;
+    }
 
-    // 1) email is resolved
-    const emailFinal = resolveEmail(profile.email ?? "", profile.name);
+    try {
+      setIsLoading(true);
 
-    // 2) Save user to db
-    const user = await saveUser({
-      display_name: profile.name,
-      email: emailFinal,
-    });
+      // 1) email is resolved
+      const emailFinal = resolveEmail(profile.email ?? "", profile.name);
 
-    // 3) Create position entry to the db
-    await createPosition({
-      user_id: user.email,
-      company_name: profile.company,
-      position_title: profile.role,
-      belief: profile.bestThing,
-      status: "draft",
-    });
+      // 2) Save user to db
+      // returns user object
+      const user = await saveUser({
+        display_name: profile.name,
+        email: emailFinal,
+      });
 
-   //Quiz begins
-    setPhase(2);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    setError(msg || "Failed to start. Please try again.");
-  } finally {
-    setIsLoading(false);
-  }
-}, [profile]);
+      // 3) Create position entry to the db
+      await createPosition({
+        user_id: user.id,                    
+        company_input: profile.company,       // e.g. "Google, London"
+        position_title: profile.role,
+        belief: profile.bestThing
+      });
+
+      //Quiz begins
+      setPhase(2);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg || "Failed to start. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [profile]);
 
   const handleAnswerChange = useCallback((qid: number, value: string) => {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
@@ -108,7 +108,7 @@ const startQuiz = useCallback(async () => {
     } finally { setIsLoading(false); }
   }, [answers, profile, questions]);
 
-
+  /* AUDIO GENERATION WITH BROWSER TTS*/
   const playVoice = useCallback(async () => {
     if (!evaluation) return;
     const audioElement = await geminiSpeak(evaluation, "Kore");
@@ -184,7 +184,7 @@ const startQuiz = useCallback(async () => {
           <Results
             evaluation={evaluation}
             profile={profile}
-            onReplay={playVoice}
+            // onReplay={playVoice}
             onRestart={restart}
             audioUrl={audioUrl ?? undefined}
             qa={questions.map((q) => ({

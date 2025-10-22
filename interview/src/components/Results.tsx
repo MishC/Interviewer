@@ -7,7 +7,7 @@ import "react-h5-audio-player/lib/styles.css";
 export default function Results({
   evaluation,
   profile,
-  onReplay,      // optional “generate & set audioUrl” action (if you keep it)
+  //onReplay,      // optional “generate & set audioUrl” action (if you keep it)
   onRestart,
   audioUrl,
   qa,
@@ -31,10 +31,10 @@ export default function Results({
 
       {evaluation ? (
         <div className="space-y-6">
-          {/* 🎵 Audio player (reloads when audioUrl changes) */}
+          {/* Audio player (reloads when audioUrl changes) */}
           {audioUrl && (
             <AudioPlayer
-              key={audioUrl}                 // ✅ forces fresh mount when url updates
+              key={audioUrl}                 
               src={audioUrl}
               showJumpControls={false}
               layout="horizontal"

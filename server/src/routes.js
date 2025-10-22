@@ -46,10 +46,8 @@ res.json({ ok: true });
 
 /** USERS */
 router.post("/users", wrap(async (req, res) => {
-const { display_name = "", email } = req.body ?? {};
+const { email, display_name=""} = req.body ?? {};
 if (!email) return res.status(400).json({ error: "Missing 'email'" });
-
-
 const { rows } = await query(
 `INSERT INTO users (email, display_name)
 VALUES ($1, $2)
@@ -62,30 +60,40 @@ res.status(201).json(rows[0]);
 
 
 /** POSITIONS (for one user -> many positions) */
-router.get("/positions", wrap(async (req, res) => {
-const { user_id } = req.query;
-const sql = user_id
-? `SELECT * FROM positions WHERE user_id = $1 ORDER BY created_at DESC`
-: `SELECT * FROM positions ORDER BY created_at DESC`;
-const params = user_id ? [user_id] : [];
-const { rows } = await query(sql, params);
-res.json(rows);
+// POST /api/positions
+router.post("/positions", wrap(async (req, res) => {
+  // must match your table columns
+  const {
+    user_id,             // INTEGER -> users.id
+    company_input,       // e.g. "Google, Dublin"
+    position_title,
+    belief = ""
+  } = req.body ?? {};
+
+  // validate
+  if (!user_id || !Number.isInteger(Number(user_id))) {
+    return res.status(400).json({ error: "Missing or invalid 'user_id' (must be users.id integer)" });
+  }
+  if (!company_input || !position_title) {
+    return res.status(400).json({ error: "Missing 'company_input' or 'position_title'" });
+  }
+
+  const { rows } = await query(
+    `INSERT INTO positions (user_id, company_input, position_title, belief)
+     VALUES ($1, $2, $3, $4)
+     RETURNING id,
+               user_id,
+               company_name,  -- GENERATED column (from company_input)
+               city,          -- GENERATED column (from company_input)
+               position_title,
+               belief,
+               created_at`,
+    [Number(user_id), company_input, position_title, belief]
+  );
+
+  res.status(201).json(rows[0]);
 }));
 
-// Create a new position
-router.post("/positions", wrap(async (req, res) => {
-const { user_id, company_name, position_title, belief = "", status = "draft" } = req.body ?? {};
-if (!user_id || !company_name || !position_title) {
-return res.status(400).json({ error: "Missing 'user_id' | 'company_name' | 'position_title'" });
-}
-const { rows } = await query(
-`INSERT INTO positions (user_id, company_name, position_title, belief, status)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, company_name, position_title, belief, status, created_at`,
-[user_id, company_name, position_title, belief, status]
-);
-res.status(201).json(rows[0]);
-}));
 
 // Delete a position by ID
 router.delete("/positions/:id", wrap(async (req, res) => {
