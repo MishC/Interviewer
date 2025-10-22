@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Zap } from "lucide-react";
 import type { Profile, Question } from "./types";
 import { selectRandomQuestions } from "./data/questions";
+import { saveUser, createPosition } from "./lib/api";
+import { resolveEmail, isValidEmail } from "./lib/email";
 import { geminiGenerateEvaluation, geminiSpeak, browserSpeak } from "./lib/gemini";
 import Input from "./components/Input";
 import QuestionCard from "./components/QuestionCard";
@@ -14,7 +16,7 @@ import "react-h5-audio-player/lib/styles.css";
 export default function App() {
   // 1=Setup, 2=Quiz, 3=Results
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
-  const [profile, setProfile] = useState<Profile>({ name: "", age: "", role: "", company: "", bestThing: "" });
+  const [profile, setProfile] = useState<Profile>({ name: "", email: "", age: "", role: "", company: "", bestThing: "" });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -32,11 +34,54 @@ export default function App() {
     setProfile((prev) => ({ ...prev, [name]: value }));
   }, []);
 
-  const startQuiz = useCallback(() => {
-    const fields = Object.values(profile);
-    const valid = fields.every((v) => String(v).trim() !== "") && (profile.age === "" || !Number.isNaN(Number(profile.age)));
-    if (valid) setPhase(2); else setError("Please fill in all fields correctly, especially the age.");
-  }, [profile]);
+  
+const startQuiz = useCallback(async () => {
+  setError(null);
+
+  // Validation of input fields of profile values before proceeding to quiz
+  const must = [profile.name, profile.age, profile.role, profile.company, profile.bestThing];
+  const allFilled = must.every((v) => String(v).trim() !== "");
+  const ageOk = profile.age === "" || !Number.isNaN(Number(profile.age));
+
+  // Email is not mandatory but if provided, must be valid
+  const emailProvided = (profile.email ?? "").trim() !== "";
+  const emailOk = !emailProvided || isValidEmail(profile.email);
+
+  if (!allFilled || !ageOk || !emailOk) {
+    setError("Please fill in all fields correctly.");
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+
+    // 1) email is resolved
+    const emailFinal = resolveEmail(profile.email ?? "", profile.name);
+
+    // 2) Save user to db
+    const user = await saveUser({
+      display_name: profile.name,
+      email: emailFinal,
+    });
+
+    // 3) Create position entry to the db
+    await createPosition({
+      user_id: user.email,
+      company_name: profile.company,
+      position_title: profile.role,
+      belief: profile.bestThing,
+      status: "draft",
+    });
+
+   //Quiz begins
+    setPhase(2);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    setError(msg || "Failed to start. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+}, [profile]);
 
   const handleAnswerChange = useCallback((qid: number, value: string) => {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
@@ -64,15 +109,15 @@ export default function App() {
   }, [answers, profile, questions]);
 
 
-const playVoice = useCallback(async () => {
-  if (!evaluation) return;
-  const audioElement = await geminiSpeak(evaluation, "Kore");
-  setAudioUrl(audioElement.src);
-}, [evaluation]);
+  const playVoice = useCallback(async () => {
+    if (!evaluation) return;
+    const audioElement = await geminiSpeak(evaluation, "Kore");
+    setAudioUrl(audioElement.src);
+  }, [evaluation]);
 
 
   const restart = useCallback(() => {
-    setPhase(1); setCurrentQIndex(0); setAnswers({}); setEvaluation(null); setProfile({ name: "", age: "", role: "", company: "", bestThing: "" }); setQuestions(selectRandomQuestions()); setError(null);
+    setPhase(1); setCurrentQIndex(0); setAnswers({}); setEvaluation(null); setProfile({ name: "", email: "", age: "", role: "", company: "", bestThing: "" }); setQuestions(selectRandomQuestions()); setError(null);
   }, []);
 
   return (
@@ -97,6 +142,14 @@ const playVoice = useCallback(async () => {
             <h2 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">Candidate Profile Setup</h2>
             <div className="space-y-4">
               <Input label="Name" name="name" value={profile.name} onChange={handleProfileChange} type="text" placeholder="John Doe" />
+              <Input
+                label="Email"
+                name="email"
+                value={profile.email}
+                onChange={handleProfileChange}
+                type="email"
+                placeholder="you@youremail.com"
+              />
               <Input label="Age" name="age" value={profile.age} onChange={handleProfileChange} type="number" placeholder="25" />
               <Input label="Position you are applying for" name="role" value={profile.role} onChange={handleProfileChange} type="text" placeholder="Senior Frontend Developer" />
               <Input label="Company Name and Location (City)" name="company" value={profile.company} onChange={handleProfileChange} type="text" placeholder="Google, London" />
@@ -129,16 +182,16 @@ const playVoice = useCallback(async () => {
 
         {phase === 3 && (
           <Results
-  evaluation={evaluation}
-  profile={profile}
-  onReplay={playVoice}
-  onRestart={restart}
-  audioUrl={audioUrl ?? undefined}
-  qa={questions.map((q) => ({
-    question: q.text,
-    answer: answers[q.id] || "",
-  }))}
-/>
+            evaluation={evaluation}
+            profile={profile}
+            onReplay={playVoice}
+            onRestart={restart}
+            audioUrl={audioUrl ?? undefined}
+            qa={questions.map((q) => ({
+              question: q.text,
+              answer: answers[q.id] || "",
+            }))}
+          />
 
         )}
       </div>

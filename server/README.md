@@ -1,17 +1,3 @@
-from Interviewer:
-
-# Start Postgres + Adminer
-cd server
-
-docker compose up -d
-
-# Run backend (Express)
-npm run dev
-
-# Run frontend (Vite)
-cd ..
-npm run dev --prefix interview
-
 ## 🧱 System Architecture
 
 | Component | Runs where | Port | Purpose |
