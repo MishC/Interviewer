@@ -71,7 +71,7 @@ const [user, setUser] = useState<SavedUser | null>(null);
 
       // 3) Create position entry to the db
       const posRow=await createPosition({
-        user_id: Number(user?.id),
+        user_id: Number(userRow.id),
         age: Number(profile.age),
         company_input: profile.company,       // e.g. "Google, London"
         position_title: profile.role,
