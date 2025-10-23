@@ -1,6 +1,3 @@
--- seed.sql — demo data for users, positions, applications (qa JSON)
--- Works with your USERS / POSITIONS (company_input -> company_name, city) / APPLICATIONS (qa JSONB) schema
-
 BEGIN;
 
 ----------------------------------------
@@ -12,41 +9,55 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'user@example.com');
 
 ----------------------------------------
 -- 2) POSITIONS
---    company_input like "Company, City" (DB auto-derives company_name, city)
+--    positions(user_id, age, company_input, position_title, belief)
+--    company_name & city are GENERATED from company_input
 ----------------------------------------
+
+-- Eviny, Bergen (age 28)
 WITH u AS (
   SELECT id AS user_id FROM users WHERE email = 'user@example.com'
 )
 INSERT INTO positions (user_id, age, company_input, position_title, belief)
-SELECT u.user_id, 'Eviny, Bergen', 'Data Analyst Trainee',
-       'I believe in using data to accelerate the green transition.'
+SELECT
+  u.user_id,
+  28,
+  'Eviny, Bergen',
+  'Data Analyst Trainee',
+  'I believe in using data to accelerate the green transition.'
 FROM u
 WHERE NOT EXISTS (
-  SELECT 1 FROM positions p
+  SELECT 1
+  FROM positions p
   WHERE p.user_id = u.user_id
-    AND p.age = 28,
+    AND p.age = 28
     AND p.company_input = 'Eviny, Bergen'
     AND p.position_title = 'Data Analyst Trainee'
 );
 
+-- Lerøy, Bergen (age 32)
 WITH u AS (
   SELECT id AS user_id FROM users WHERE email = 'user@example.com'
 )
 INSERT INTO positions (user_id, age, company_input, position_title, belief)
-SELECT u.user_id, 'Lerøy, Bergen', 'IT Trainee',
-       'I believe in digital transformation for sustainable seafood.'
+SELECT
+  u.user_id,
+  32,
+  'Lerøy, Bergen',
+  'IT Trainee',
+  'I believe in digital transformation for sustainable seafood.'
 FROM u
 WHERE NOT EXISTS (
-  SELECT 1 FROM positions p
+  SELECT 1
+  FROM positions p
   WHERE p.user_id = u.user_id
-    AND p.age = 32,
+    AND p.age = 32
     AND p.company_input = 'Lerøy, Bergen'
     AND p.position_title = 'IT Trainee'
 );
 
 ----------------------------------------
 -- 3) APPLICATIONS with 10 Q/A (JSONB)
---    Uses ON CONFLICT (user_id, position_id) to stay idempotent but refresh content if you tweak below.
+--    Idempotent via ON CONFLICT (user_id, position_id)
 ----------------------------------------
 
 -- For Eviny, Bergen
@@ -56,7 +67,9 @@ WITH u AS (
 pos AS (
   SELECT id AS position_id
   FROM positions
-  WHERE company_input = 'Eviny, Bergen' AND position_title = 'Data Analyst Trainee'
+  WHERE company_input = 'Eviny, Bergen'
+    AND position_title = 'Data Analyst Trainee'
+  LIMIT 1
 )
 INSERT INTO applications (user_id, position_id, qa, summary_file_url)
 SELECT
@@ -88,7 +101,9 @@ WITH u AS (
 pos AS (
   SELECT id AS position_id
   FROM positions
-  WHERE company_input = 'Lerøy, Bergen' AND position_title = 'IT Trainee'
+  WHERE company_input = 'Lerøy, Bergen'
+    AND position_title = 'IT Trainee'
+  LIMIT 1
 )
 INSERT INTO applications (user_id, position_id, qa, summary_file_url)
 SELECT
