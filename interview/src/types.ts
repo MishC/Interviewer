@@ -35,7 +35,7 @@ export type ApplicationPayload = {
   user_id: number;
   position_id: number;
   qa: any[];                
-  summary_file_url?: string;
+  evaluation?: string;
 };
 
 // types.ts

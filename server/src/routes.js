@@ -126,7 +126,7 @@ res.status(204).send();
 // APPLICATIONS (for one user -> many applications to positions)
 
 router.post("/applications", wrap(async (req, res) => {
-  const { user_id, position_id, qa, summary_file_url = "" } = req.body ?? {};
+  const { user_id, position_id, qa, evaluation = "" } = req.body ?? {};
 
   if (!user_id || !position_id) {
     return res.status(400).json({ error: "Missing 'user_id' or 'position_id'" });
@@ -136,14 +136,14 @@ router.post("/applications", wrap(async (req, res) => {
   }
 
   const { rows } = await query(
-    `INSERT INTO applications (user_id, position_id, qa, summary_file_url)
+    `INSERT INTO applications (user_id, position_id, qa, evaluation)
      VALUES ($1, $2, $3::jsonb, $4)
      ON CONFLICT (user_id, position_id) DO UPDATE
        SET qa = EXCLUDED.qa,
-           summary_file_url = EXCLUDED.summary_file_url,
+           evaluation = EXCLUDED.evaluation,
            updated_at = now()
-     RETURNING id, user_id, position_id, qa, summary_file_url, created_at, updated_at`,
-    [user_id, position_id, JSON.stringify(qa), summary_file_url]
+     RETURNING id, user_id, position_id, qa, evaluation, created_at, updated_at`,
+    [user_id, position_id, JSON.stringify(qa), evaluation]
   );
 
   res.status(201).json(rows[0]);

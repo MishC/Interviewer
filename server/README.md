@@ -133,7 +133,7 @@ curl -X POST http://localhost:4000/api/applications \
         }
       }
     ],
-    "summary_file_url": ""
+    "evaluation": ""
   }'
 
 ```

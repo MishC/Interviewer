@@ -116,14 +116,15 @@ const doEvaluation = useCallback(async () => {
     if (!user?.id) throw new Error("Missing user.id");
     if (!position?.id) throw new Error("Missing position.id");
 
+    
+
+    setEvaluation(text);
     await saveApplication({
       user_id: user.id,
       position_id: position.id,   // <-- use position.id
       qa,
-      summary_file_url: "",
+      evaluation: text|| ""
     });
-
-    setEvaluation(text);
     setPhase(3);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

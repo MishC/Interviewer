@@ -49,7 +49,7 @@ export async function saveApplication(input: ApplicationPayload) {
     user_id: number;
     position_id: number;
     qa: any[];
-    summary_file_url: string;
+    evaluation: string;
     created_at: string;
     updated_at: string;
   }>;

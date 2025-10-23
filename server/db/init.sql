@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS applications (
 
   -- Array of 10 items; each item: {question_id, question_text, type, answer:{text,audio_url,transcript}}
   qa JSONB NOT NULL DEFAULT '[]'::jsonb,
-  summary_file_url TEXT NOT NULL DEFAULT '',   -- link/path to PDF export
+  evaluation TEXT NOT NULL DEFAULT '',   
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

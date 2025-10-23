@@ -71,7 +71,7 @@ pos AS (
     AND position_title = 'Data Analyst Trainee'
   LIMIT 1
 )
-INSERT INTO applications (user_id, position_id, qa, summary_file_url)
+INSERT INTO applications (user_id, position_id, qa, evaluation)
 SELECT
   u.user_id,
   pos.position_id,
@@ -91,7 +91,7 @@ SELECT
 FROM u, pos
 ON CONFLICT (user_id, position_id) DO UPDATE
   SET qa = EXCLUDED.qa,
-      summary_file_url = EXCLUDED.summary_file_url,
+      evaluation = EXCLUDED.evaluation,
       updated_at = now();
 
 -- For Lerøy, Bergen
@@ -105,7 +105,7 @@ pos AS (
     AND position_title = 'IT Trainee'
   LIMIT 1
 )
-INSERT INTO applications (user_id, position_id, qa, summary_file_url)
+INSERT INTO applications (user_id, position_id, qa, evaluation)
 SELECT
   u.user_id,
   pos.position_id,
@@ -125,7 +125,7 @@ SELECT
 FROM u, pos
 ON CONFLICT (user_id, position_id) DO UPDATE
   SET qa = EXCLUDED.qa,
-      summary_file_url = EXCLUDED.summary_file_url,
+      evaluation = EXCLUDED.evaluation,
       updated_at = now();
 
 COMMIT;
