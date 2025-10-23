@@ -17,13 +17,14 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'user@example.com');
 WITH u AS (
   SELECT id AS user_id FROM users WHERE email = 'user@example.com'
 )
-INSERT INTO positions (user_id, company_input, position_title, belief)
+INSERT INTO positions (user_id, age, company_input, position_title, belief)
 SELECT u.user_id, 'Eviny, Bergen', 'Data Analyst Trainee',
        'I believe in using data to accelerate the green transition.'
 FROM u
 WHERE NOT EXISTS (
   SELECT 1 FROM positions p
   WHERE p.user_id = u.user_id
+    AND p.age = 28,
     AND p.company_input = 'Eviny, Bergen'
     AND p.position_title = 'Data Analyst Trainee'
 );
@@ -31,13 +32,14 @@ WHERE NOT EXISTS (
 WITH u AS (
   SELECT id AS user_id FROM users WHERE email = 'user@example.com'
 )
-INSERT INTO positions (user_id, company_input, position_title, belief)
+INSERT INTO positions (user_id, age, company_input, position_title, belief)
 SELECT u.user_id, 'Lerøy, Bergen', 'IT Trainee',
        'I believe in digital transformation for sustainable seafood.'
 FROM u
 WHERE NOT EXISTS (
   SELECT 1 FROM positions p
   WHERE p.user_id = u.user_id
+    AND p.age = 32,
     AND p.company_input = 'Lerøy, Bergen'
     AND p.position_title = 'IT Trainee'
 );

@@ -12,15 +12,16 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS positions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-
+  age INTEGER NOT NULL,
   company_input TEXT NOT NULL,                               -- e.g. "Google, Dublin"
-  company_name  TEXT GENERATED ALWAYS AS (                   -- left of comma
+  company_name  TEXT GENERATED ALWAYS AS (                   
+  
       NULLIF(btrim(split_part(company_input, ',', 1)), '')
   ) STORED,
-  city          TEXT GENERATED ALWAYS AS (                   -- right of comma
+  city          TEXT GENERATED ALWAYS AS (                  
       NULLIF(btrim(split_part(company_input, ',', 2)), '')
   ) STORED,
-
+  
   position_title TEXT NOT NULL,
   belief         TEXT NOT NULL DEFAULT '',
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
