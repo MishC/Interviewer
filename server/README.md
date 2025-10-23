@@ -72,3 +72,6 @@ Then open:
 - 🌍 API health: **http://localhost:4000/api/health**  
 - 🧠 Adminer UI: **http://localhost:5000**  
 - 💻 Frontend: **http://localhost:5173**
+
+## TEST API
+
