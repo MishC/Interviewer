@@ -9,12 +9,14 @@ This program aims to use google cloud to host the postgre database in the future
 
 
 ## 🧱 System Architecture
+### DEV mode
 
 | Component | Runs where | Port | Purpose |
 |------------|-------------|------|----------|
 | **PostgreSQL** | 🐳 Docker container | **5432** | Stores all application data (users, positions, applications with QA JSON) |
 | **Adminer** | 🐳 Docker container | **5000** | Web UI to inspect and manage the Postgres database |
 | **Backend (Node.js / Express)** | 💻 Host machine | **4000** | REST API server — connects to PostgreSQL and serves endpoints (`/api/...`) |
+|**Backend (Webpack server)** | 💻 Host machine | **4001** | Node.js WebSocket server - converts audio from webm to PCM and send it to Google streamline speech to text services (` ws/stt `)
 | **Frontend (React / Vite)** | 💻 Host machine | **5173** (default) | Web client in folder interview that calls the backend API (`http://localhost:4000/api/...`) |
 
 ---
