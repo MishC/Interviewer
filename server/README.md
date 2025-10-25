@@ -75,7 +75,7 @@ docker compose up -d
 # Install backend node dependencies (package.json)
 npm i --save
 
-# Run backend (Express)
+# Run backend (Express + WS STT)
 npm run dev
 
 # Install frontend dependencies (package.json)
