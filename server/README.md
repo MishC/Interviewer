@@ -1,10 +1,12 @@
 Hi!
 
-This program use Gemini AI prompt to have a role as a senior HR (15 years experience). It asks you 10 of most 
-common behavioural interview questions. You can answer either by directly typing to the text field or by voice, when you press on the green record button, because this app use streaming speech recognition by Google.
+This program use Gemini AI prompt to have a role as a senior HR analyst (15 years experience). It asks you 10 of most common behavioural interview questions. You can answer either by directly typing to the text field or by voice, when you press on the green record button, because this app use streaming speech recognition by Google.
 In the end you will get the evaluation of your interview in written form, all your answers to questions, as well
 as the recommendation how to answer more professionaly in the context of the hiring company and final 
 verdict if you advance to the next round of the interview or not.
+
+This program aims to use google cloud to host the postgre database in the future, and use ML to fine tune the answers of AI HR analyst, or just make generalizations about data.
+
 
 ## 🧱 System Architecture
 
