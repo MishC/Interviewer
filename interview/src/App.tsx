@@ -9,7 +9,6 @@ import Input from "./components/Input";
 import QuestionCard from "./components/QuestionCard";
 import Results from "./components/Results";
 import "./index.css";
-import "react-h5-audio-player/lib/styles.css";
 
 
 

@@ -38,7 +38,7 @@ export type ApplicationPayload = {
   evaluation?: string;
 };
 
-// types.ts
+
 export type SavedPosition = {
   id: number;
   user_id: number;
@@ -49,4 +49,24 @@ export type SavedPosition = {
   belief: string;
   created_at: string;
 };
+
+//Audio
+export type RecorderControlsProps = {
+  start: () => void;
+  stop: () => void;
+  status: "idle" | "recording" | "stopped";
+  isProcessing: boolean;
+};
+
+export type StreamProps = {
+  wsUrl?: string;                 // default: ws://localhost:4001/ws/stt
+  onInterim?: (text: string) => void;
+  onFinal?: (text: string) => void;
+  mimeType?: string;              // "audio/webm" default
+  timesliceMs?: number;           // 250ms default
+  Controls: React.ComponentType<RecorderControlsProps>;
+};
+
+
+
 

@@ -60,8 +60,15 @@ PGSSL=false
 cd server
 docker compose up -d
 
+# Install backend node dependencies (package.json)
+npm i --save
+
 # Run backend (Express)
 npm run dev
+
+# Install frontend dependencies (package.json)
+cd interview
+npm i --save
 
 # Run frontend (Vite)
 npm run dev --prefix interview

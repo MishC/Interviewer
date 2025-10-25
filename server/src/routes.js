@@ -3,6 +3,9 @@ import { query } from "./db.js";
 import dns from "dns/promises";
 
 
+
+
+
 const router = Router();
 
 
@@ -148,5 +151,6 @@ router.post("/applications", wrap(async (req, res) => {
 
   res.status(201).json(rows[0]);
 }));
+
 
 export default router;

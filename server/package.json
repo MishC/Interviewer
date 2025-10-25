@@ -3,18 +3,25 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
+    "dev": "npm-run-all --parallel api ws",
+    "api": "nodemon src/server.js",
+    "ws": "nodemon src/server-ws.js",
     "start": "node src/server.js",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@google-cloud/speech": "^7.2.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.19.2",
-    "pg": "^8.13.1"
+    "multer": "^2.0.2",
+    "pg": "^8.13.1",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "eslint": "^9.13.0",
     "nodemon": "^3.1.7",
-    "eslint": "^9.13.0"
+    "npm-run-all": "^4.1.5"
   }
 }
