@@ -85,6 +85,10 @@ npm i --save
 # Run frontend (Vite)
 npm run dev --prefix interview
 ```
+Use fnm or npx to handle node version > 22. 
+
+``` fnm use 24 ```
+``` fnm default 22 ```
 
 Then open:
 
