@@ -9,6 +9,7 @@ export default function LiveSTT({
   mimeType = "audio/webm",
   timesliceMs = 250,
   Controls = RecorderControls,
+  onRecordingChange 
 }: StreamProps) {
   const [status, setStatus] = React.useState<"idle" | "recording" | "stopped">("idle");
   const [isProcessing, setIsProcessing] = React.useState(false);
@@ -22,11 +23,11 @@ export default function LiveSTT({
     setIsProcessing(true);
 
     try {
-      // 0) Mic permissions first (ak by WS padol, aspoň vieme, že mic ide)
+      // 0) Mic permissions first ()
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // 1) WS connect s timeoutom + error handler
+      // 1) WS connect with timeoutom + error handler
       const ws = new WebSocket(wsUrl);
       ws.binaryType = "arraybuffer";
 
@@ -50,9 +51,7 @@ export default function LiveSTT({
       await openPromise;
       wsRef.current = ws;
 
-      // 2) MediaRecorder s fallback MIME
-      let usedMime = mimeType;
-    
+      // 2) MediaRecorder (mr) s fallback MIME    
 
       const mr = new MediaRecorder(stream, { mimeType: 'audio/webm; codecs=opus' });
       console.log('[Client] using mime audio/webm; codecs=opus');
@@ -67,15 +66,19 @@ export default function LiveSTT({
         try { ws.send(JSON.stringify({ event: "end" })); } catch {}
         try { ws.close(); } catch {}
         setStatus("stopped");
+        onRecordingChange?.(false);        
       };
 
       mr.start(timesliceMs);
       mrRef.current = mr;
       setStatus("recording");
+      onRecordingChange?.(true); 
 
-      // WS runtime errors → ukonči nahrávanie
+      // WS runtime errors → stop recording
       ws.onerror = () => {
         console.error("WS runtime error");
+        onRecordingChange?.(false);
+
         try { mr.stop(); } catch {}
       };
       ws.onclose = () => {
@@ -91,6 +94,8 @@ export default function LiveSTT({
       try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
       try { wsRef.current?.close(); } catch {}
       setStatus("idle");
+      onRecordingChange?.(false);
+
     } finally {
       setIsProcessing(false);
     }
@@ -105,6 +110,7 @@ export default function LiveSTT({
       try { mrRef.current?.stop(); } catch {}
       try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
       try { wsRef.current?.close(); } catch {}
+      onRecordingChange?.(false);
     };
   }, []);
 

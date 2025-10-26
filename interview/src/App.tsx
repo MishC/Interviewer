@@ -1,22 +1,37 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Zap } from "lucide-react";
-import { type SavedUser, type Profile, type Question, type SavedPosition } from "./types";
+import {
+  type SavedUser,
+  type Profile,
+  type Question,
+  type SavedPosition,
+} from "./types";
 import { selectRandomQuestions } from "./data/questions";
 import { saveUser, createPosition, saveApplication } from "./lib/api";
 import { resolveEmail, isValidEmail } from "./lib/email";
-import { geminiGenerateEvaluation, geminiSpeak, browserSpeak } from "./lib/gemini";
+import {
+  geminiGenerateEvaluation,
+  geminiSpeak,
+  browserSpeak,
+} from "./lib/gemini";
 import Input from "./components/Input";
 import QuestionCard from "./components/QuestionCard";
 import Results from "./components/Results";
 import "./index.css";
 
-
-
 export default function App() {
   // 1=Setup, 2=Quiz, 3=Results
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
-  const [profile, setProfile] = useState<Profile>({ id: Number(undefined), name: "", email: "", age: "", role: "", company: "", bestThing: "" });
-const [user, setUser] = useState<SavedUser | null>(null);
+  const [profile, setProfile] = useState<Profile>({
+    id: Number(undefined),
+    name: "",
+    email: "",
+    age: "",
+    role: "",
+    company: "",
+    bestThing: "",
+  });
+  const [user, setUser] = useState<SavedUser | null>(null);
   const [position, setPosition] = useState<SavedPosition | null>(null);
 
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -27,21 +42,32 @@ const [user, setUser] = useState<SavedUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
+  const [isRecording, setIsRecording] = React.useState(false);
 
-  useEffect(() => { setQuestions(selectRandomQuestions()); }, []);
+  useEffect(() => {
+    setQuestions(selectRandomQuestions());
+  }, []);
   const currentQuestion = questions[currentQIndex];
 
-  const handleProfileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
-  }, []);
-
+  const handleProfileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      setProfile((prev) => ({ ...prev, [name]: value }));
+    },
+    []
+  );
 
   const startQuiz = useCallback(async () => {
     setError(null);
 
     // Validation of input fields of profile values before proceeding to quiz
-    const must = [profile.name, profile.age, profile.role, profile.company, profile.bestThing];
+    const must = [
+      profile.name,
+      profile.age,
+      profile.role,
+      profile.company,
+      profile.bestThing,
+    ];
     const allFilled = must.every((v) => String(v).trim() !== "");
     const ageOk = profile.age === "" || !Number.isNaN(Number(profile.age));
 
@@ -69,14 +95,14 @@ const [user, setUser] = useState<SavedUser | null>(null);
       setUser(userRow);
 
       // 3) Create position entry to the db
-      const posRow=await createPosition({
+      const posRow = await createPosition({
         user_id: Number(userRow.id),
         age: Number(profile.age),
-        company_input: profile.company,       // e.g. "Google, London"
+        company_input: profile.company, // e.g. "Google, London"
         position_title: profile.role,
-        belief: profile.bestThing
+        belief: profile.bestThing,
       });
-       setPosition(posRow);
+      setPosition(posRow);
       //Quiz begins
       setPhase(2);
     } catch (e: unknown) {
@@ -97,132 +123,253 @@ const [user, setUser] = useState<SavedUser | null>(null);
     return Boolean(a && String(a).trim() !== "");
   }, [answers, currentQuestion]);
 
-  const prevQuestion = useCallback(() => { if (currentQIndex > 0) setCurrentQIndex((i) => i - 1); }, [currentQIndex]);
+  const prevQuestion = useCallback(() => {
+    if (currentQIndex > 0) setCurrentQIndex((i) => i - 1);
+  }, [currentQIndex]);
+  const nextAllowed = !isRecording && isCurrentAnswered;
+  const backAllowed = !isRecording && currentQIndex !== 0;
 
-const doEvaluation = useCallback(async () => {
-  setIsLoading(true); setError(null);
-  try {
-    const qa = questions.map((q) => ({
-      question_id: q.id,
-      question_text: q.text,
-      type: q.type,
-      ...(q.options ? { options: q.options } : {}),
-      answer: { text: answers[q.id] ?? "", audio_url: "", transcript: "" } // No audio for now
-    }));
+  const doEvaluation = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const qa = questions.map((q) => ({
+        question_id: q.id,
+        question_text: q.text,
+        type: q.type,
+        ...(q.options ? { options: q.options } : {}),
+        answer: { text: answers[q.id] ?? "", audio_url: "", transcript: "" }, // No audio for now
+      }));
 
-    const text = await geminiGenerateEvaluation({ profile, qa: qa.map(x => ({ question: x.question_text, answer: x.answer.text })) });
+      const text = await geminiGenerateEvaluation({
+        profile,
+        qa: qa.map((x) => ({
+          question: x.question_text,
+          answer: x.answer.text,
+        })),
+      });
 
-    if (!user?.id) throw new Error("Missing user.id");
-    if (!position?.id) throw new Error("Missing position.id");
+      if (!user?.id) throw new Error("Missing user.id");
+      if (!position?.id) throw new Error("Missing position.id");
 
-    
+      setEvaluation(text);
+      await saveApplication({
+        user_id: user.id,
+        position_id: position.id, // <-- use position.id
+        qa,
+        evaluation: text || "",
+      });
+      setPhase(3);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [answers, profile, questions, user, position]);
 
-    setEvaluation(text);
-    await saveApplication({
-      user_id: user.id,
-      position_id: position.id,   // <-- use position.id
-      qa,
-      evaluation: text|| ""
+  /* AUDIO GENERATION WITH BROWSER TTS*/
+  const safeNext = () => {
+    if (isRecording) {
+      setError("Please stop recording before moving to the next question.");
+      return;
+    }
+    if (currentQIndex < questions.length - 1) {
+      setCurrentQIndex((i) => i + 1);
+    } else {
+      // evaluation...
+    }
+  };
+
+  const safeBack = () => {
+    if (isRecording) {
+      setError("Please stop recording before going back.");
+      return;
+    }
+    prevQuestion();
+  };
+
+  const restart = useCallback(() => {
+    setPhase(1);
+    setCurrentQIndex(0);
+    setAnswers({});
+    setEvaluation(null);
+    setProfile({
+      id: Number(undefined),
+      name: "",
+      email: "",
+      age: "",
+      role: "",
+      company: "",
+      bestThing: "",
     });
-    setPhase(3);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    setError(msg);
-  } finally {
-    setIsLoading(false);
-  }
-}, [answers, profile, questions, user, position]);
+    setQuestions(selectRandomQuestions());
+    setError(null);
+  }, []);
 
-
-/* AUDIO GENERATION WITH BROWSER TTS*/
-const playVoice = useCallback(async () => {
-  if (!evaluation) return;
-  const audioElement = await geminiSpeak(evaluation, "Kore");
-  setAudioUrl(audioElement.src);
-}, [evaluation]);
-
-
-const restart = useCallback(() => {
-  setPhase(1); setCurrentQIndex(0); setAnswers({}); setEvaluation(null); 
-  setProfile({ id: Number(undefined), name: "", email: "", age: "", role: "", company: "", bestThing: ""  }); 
-  setQuestions(selectRandomQuestions()); setError(null);
-}, []);
-
-return (
-  <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex items-center justify-center font-sans">
-    <style>{`
+  return (
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex items-center justify-center font-sans">
+      <style>{`
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-thumb { background-color: #a0aec0; border-radius: 4px; }
         ::-webkit-scrollbar-track { background-color: #f7fafc; }
       `}</style>
-    <div className="w-full max-w-5xl">
-      <header className="text-center mb-10">
-        <h1 className="text-5xl font-extrabold text-gray-900 leading-tight">First Round Interview Simulator</h1>
-        <p className="text-gray-600 mt-2 text-xl">Practice key behavioral and motivational questions</p>
-      </header>
+      <div className="w-full max-w-5xl">
+        <header className="text-center mb-10">
+          <h1 className="text-5xl font-extrabold text-gray-900 leading-tight">
+            First Round Interview Simulator
+          </h1>
+          <p className="text-gray-600 mt-2 text-xl">
+            Practice key behavioral and motivational questions
+          </p>
+        </header>
 
-      {error && (
-        <div className="max-w-xl mx-auto p-3 mb-6 text-sm text-red-800 bg-red-100 rounded-lg">{error}</div>
-      )}
+        {error && (
+          <div className="max-w-xl mx-auto p-3 mb-6 text-sm text-red-800 bg-red-100 rounded-lg">
+            {error}
+          </div>
+        )}
 
-      {phase === 1 && (
-        <div className="max-w-xl mx-auto p-6 bg-white shadow-2xl rounded-xl">
-          <h2 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">Candidate Profile Setup</h2>
-          <div className="space-y-4">
-            <Input label="Name" name="name" value={profile.name} onChange={handleProfileChange} type="text" placeholder="John Doe" />
-            <Input
-              label="Email"
-              name="email"
-              value={profile.email}
-              onChange={handleProfileChange}
-              type="email"
-              placeholder="you@youremail.com"
+        {phase === 1 && (
+          <div className="max-w-xl mx-auto p-6 bg-white shadow-2xl rounded-xl">
+            <h2 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">
+              Candidate Profile Setup
+            </h2>
+            <div className="space-y-4">
+              <Input
+                label="Name"
+                name="name"
+                value={profile.name}
+                onChange={handleProfileChange}
+                type="text"
+                placeholder="John Doe"
+              />
+              <Input
+                label="Email"
+                name="email"
+                value={profile.email}
+                onChange={handleProfileChange}
+                type="email"
+                placeholder="you@youremail.com"
+              />
+              <Input
+                label="Age"
+                name="age"
+                value={profile.age}
+                onChange={handleProfileChange}
+                type="number"
+                placeholder="25"
+              />
+              <Input
+                label="Position you are applying for"
+                name="role"
+                value={profile.role}
+                onChange={handleProfileChange}
+                type="text"
+                placeholder="Senior Frontend Developer"
+              />
+              <Input
+                label="Company Name and Location (City)"
+                name="company"
+                value={profile.company}
+                onChange={handleProfileChange}
+                type="text"
+                placeholder="Google, London"
+              />
+              <Input
+                label="The best thing I will do in this field (Personal conviction)"
+                name="bestThing"
+                value={profile.bestThing}
+                onChange={handleProfileChange}
+                type="text"
+                placeholder="Bring innovation and simplify user processes"
+              />
+            </div>
+            <button
+              onClick={startQuiz}
+              className="mt-8 w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-[1.01]"
+            >
+              Start Interview Simulation
+            </button>
+          </div>
+        )}
+
+        {phase === 2 && currentQuestion && (
+          <div className="max-w-2xl mx-auto p-6 bg-white shadow-2xl rounded-xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-indigo-600">
+                Question {currentQIndex + 1} of 10
+              </h2>
+              <div className="text-lg font-medium text-gray-600">
+                Role: {profile.role}
+              </div>
+            </div>
+            <QuestionCard
+              q={currentQuestion}
+              value={answers[currentQuestion.id]}
+              onChange={(v) => handleAnswerChange(currentQuestion.id, v)}
+              onRecordingChange={setIsRecording} 
             />
-            <Input label="Age" name="age" value={profile.age} onChange={handleProfileChange} type="number" placeholder="25" />
-            <Input label="Position you are applying for" name="role" value={profile.role} onChange={handleProfileChange} type="text" placeholder="Senior Frontend Developer" />
-            <Input label="Company Name and Location (City)" name="company" value={profile.company} onChange={handleProfileChange} type="text" placeholder="Google, London" />
-            <Input label="The best thing I will do in this field (Personal conviction)" name="bestThing" value={profile.bestThing} onChange={handleProfileChange} type="text" placeholder="Bring innovation and simplify user processes" />
-          </div>
-          <button onClick={startQuiz} className="mt-8 w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-[1.01]">Start Interview Simulation</button>
-        </div>
-      )}
 
-      {phase === 2 && currentQuestion && (
-        <div className="max-w-2xl mx-auto p-6 bg-white shadow-2xl rounded-xl">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-indigo-600">Question {currentQIndex + 1} of 10</h2>
-            <div className="text-lg font-medium text-gray-600">Role: {profile.role}</div>
-          </div>
-          <QuestionCard q={currentQuestion} value={answers[currentQuestion.id]} onChange={(v) => handleAnswerChange(currentQuestion.id, v)} />
-          <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
-            <button onClick={prevQuestion} disabled={currentQIndex === 0} className="px-6 py-2 border border-indigo-600 text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition">&larr; Back</button>
-            {currentQIndex < questions.length - 1 ? (
-              <button onClick={() => setCurrentQIndex((i) => i + 1)} disabled={!isCurrentAnswered} className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition">Next Question &rarr;</button>
-            ) : (
-              <button onClick={doEvaluation} disabled={!isCurrentAnswered || isLoading} className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center">
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-5 w-5" />}
-                {isLoading ? "Generating Evaluation..." : "Finish and Get Evaluation"}
+            <div className="flex justify-between mt-8 pt-4 border-t border-gray-200">
+              <button
+                onClick={safeBack}
+                disabled={!backAllowed}
+                className="px-6 py-2 border border-indigo-600 text-indigo-600 font-semibold rounded-lg hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                &larr; Back
               </button>
-            )}
+
+              {currentQIndex < questions.length - 1 ? (
+                <button
+                  onClick={safeNext}
+                  disabled={!nextAllowed}
+                  className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  title={isRecording ? "Stop recording to continue" : ""}
+                >
+                  Next Question &rarr;
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (isRecording) {
+                      alert("Stop recording first.");
+                      return;
+                    }
+                    doEvaluation();
+                  }}
+                  disabled={isRecording || !isCurrentAnswered || isLoading}
+                  className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center"
+                >
+                  {/* ... */}{" "}
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Zap className="mr-2 h-5 w-5" />
+                  )}
+                  {isLoading
+                    ? "Generating Evaluation..."
+                    : "Finish and Get Evaluation"}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {phase === 3 && (
-        <Results
-          evaluation={evaluation}
-          profile={profile}
-          // onReplay={playVoice}
-          onRestart={restart}
-          audioUrl={audioUrl ?? undefined}
-          qa={questions.map((q) => ({
-            question: q.text,
-            answer: answers[q.id] || "",
-          }))}
-        />
-
-      )}
+        {phase === 3 && (
+          <Results
+            evaluation={evaluation}
+            profile={profile}
+            // onReplay={playVoice}
+            onRestart={restart}
+            audioUrl={audioUrl ?? undefined}
+            qa={questions.map((q) => ({
+              question: q.text,
+              answer: answers[q.id] || "",
+            }))}
+          />
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
 }

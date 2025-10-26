@@ -65,6 +65,7 @@ export type StreamProps = {
   mimeType?: string;              // "audio/webm" default
   timesliceMs?: number;           // 250ms default
   Controls: React.ComponentType<RecorderControlsProps>;
+   onRecordingChange?: (rec: boolean) => void;
 };
 
 

@@ -85,10 +85,28 @@ npm i --save
 # Run frontend (Vite)
 npm run dev --prefix interview
 ```
-Use fnm or npx to handle node version > 22. 
+Use fnm or nvm to handle node version > 22. 
 
 ``` fnm use 24 ```
 ``` fnm default 22 ```
+
+## Google Cloud STT - Set up
+
+In your google cloud, make a project with a specific name (e.g. Interviewer) In API&Services activate Cloud Speech-to-Text API which converts audio to text by applying powerful neural network models.
+
+In IAM & Admin create Service account. When creating the Service Account, you must select Create key and choose the JSON format. A JSON file will be downloaded to your computer. Keep this file secure!
+
+Example in .env:
+
+```GOOGLE_APPLICATION_CREDENTIALS=path/to/gc/apiService/keyname.json```
+
+In IAM & Admin  Choose these roles for your project:
+
+```
+Cloud Speech Client
+Service Usage Consumer
+```
+Further information: [Transcribe audio from streaming input](https://docs.cloud.google.com/speech-to-text/docs/transcribe-streaming-audio#speech-streaming-recognize-nodejs)
 
 Then open:
 
