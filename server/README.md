@@ -5,7 +5,34 @@ In the end you will get the evaluation of your interview in written form, all yo
 as the recommendation how to answer more professionaly in the context of the hiring company and final 
 verdict if you advance to the next round of the interview or not.
 
-This program aims to use google cloud to host the postgre database in the future, and use ML to fine tune the answers of AI HR analyst, or just make generalizations about data.
+This program aims to use google cloud to host the postgre database in the future, and use ML to fine tune the answers of AI HR analyst, or just make
+generalizations about data.
+
+# 🧩 HOW TO RUN
+
+```bash
+# Start Postgres + Adminer
+cd server
+docker compose up -d
+
+# Install backend node dependencies (package.json)
+npm i --save
+
+# Run backend (Express + WS STT)
+npm run dev
+
+# Install frontend dependencies (package.json)
+cd interview
+npm i --save
+
+# Run frontend (Vite)
+cd interview
+npm run dev 
+```
+Use fnm or nvm to handle node version > 22. 
+
+``` fnm use 24 ```
+``` fnm default 22 ```
 
 
 ## 🧱 System Architecture
@@ -64,31 +91,6 @@ PGSSL=false
 ```
 
 ---
-
-### 🧩 Services startup
-
-```bash
-# Start Postgres + Adminer
-cd server
-docker compose up -d
-
-# Install backend node dependencies (package.json)
-npm i --save
-
-# Run backend (Express + WS STT)
-npm run dev
-
-# Install frontend dependencies (package.json)
-cd interview
-npm i --save
-
-# Run frontend (Vite)
-npm run dev --prefix interview
-```
-Use fnm or nvm to handle node version > 22. 
-
-``` fnm use 24 ```
-``` fnm default 22 ```
 
 ## Google Cloud STT - Set up
 
